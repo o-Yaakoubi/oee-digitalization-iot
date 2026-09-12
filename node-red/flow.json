@@ -1,0 +1,391 @@
+[
+    {
+        "id": "b3af4c3f27aab992",
+        "type": "tab",
+        "label": "Flow 1 - TRS Full Screen",
+        "disabled": false
+    },
+    {
+        "id": "9b91197d0ac9e35a",
+        "type": "mqtt in",
+        "z": "b3af4c3f27aab992",
+        "name": "TRS Data from ESP32",
+        "topic": "pfa/trs/data",
+        "qos": 0,
+        "datatype": "json",
+        "broker": "d2aba5db6c3d1e68",
+        "nl": false,
+        "rap": true,
+        "inputs": 0,
+        "x": 120,
+        "y": 320,
+        "wires": [
+            [
+                "ec7d02476e669655"
+            ]
+        ]
+    },
+    {
+        "id": "ec7d02476e669655",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Store MQTT Data to Globals",
+        "func": "if (msg.payload) {\n    // Store all values from Wokwi ESP32 via MQTT\n    if (msg.payload.td !== undefined) global.set(\"td\", msg.payload.td);\n    if (msg.payload.tp !== undefined) global.set(\"tp\", msg.payload.tp);\n    if (msg.payload.tq !== undefined) global.set(\"tq\", msg.payload.tq);\n    if (msg.payload.trs !== undefined) global.set(\"trs\", msg.payload.trs);\n    if (msg.payload.vitesse_rpm !== undefined) global.set(\"vitesse_rpm\", msg.payload.vitesse_rpm);\n    if (msg.payload.good_count !== undefined) global.set(\"good_count\", msg.payload.good_count);\n    if (msg.payload.reject_count !== undefined) global.set(\"reject_count\", msg.payload.reject_count);\n    if (msg.payload.total !== undefined) global.set(\"total\", msg.payload.total);\n    if (msg.payload.machine_state !== undefined) global.set(\"machine_state\", msg.payload.machine_state);\n    if (msg.payload.downtime_min !== undefined) global.set(\"runtime\", msg.payload.downtime_min);\n    if (msg.payload.machine_name !== undefined) global.set(\"machine_name\", msg.payload.machine_name);\n    if (msg.payload.nominal_rpm !== undefined) global.set(\"nominal_rpm\", msg.payload.nominal_rpm);\n    if (msg.payload.planned_time !== undefined) global.set(\"planned_time\", msg.payload.planned_time);\n    \n    // Pass through for dashboard\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "x": 370,
+        "y": 380,
+        "wires": [
+            [
+                "f99f6aa9c159701e"
+            ]
+        ]
+    },
+    {
+        "id": "f99f6aa9c159701e",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "TRS Calculation & Format",
+        "func": "let td = global.get(\"td\") || 0;\nlet tp = global.get(\"tp\") || 0;\nlet tq = global.get(\"tq\") || 0;\nlet trs_from_esp = global.get(\"trs\") || 0;\nlet machine_name = global.get(\"machine_name\") || \"MACHINE\";\nlet good_count = global.get(\"good_count\") || 0;\nlet reject_count = global.get(\"reject_count\") || 0;\nlet total = global.get(\"total\") || 0;\nlet vitesse_rpm = global.get(\"vitesse_rpm\") || 0;\nlet runtime = global.get(\"runtime\") || 0;\n\n// Calculate TRS if not sent from ESP32\nlet TRS = trs_from_esp > 0 ? trs_from_esp : (td/100) * (tp/100) * (tq/100) * 100;\n\nmsg.payload = {\n    trs: parseFloat(TRS.toFixed(1)),\n    availability: parseFloat(td.toFixed(1)),\n    performance: parseFloat(tp.toFixed(1)),\n    quality: parseFloat(tq.toFixed(1)),\n    total: total,\n    good: good_count,\n    reject: reject_count,\n    machine: machine_name,\n    vitesse_rpm: vitesse_rpm,\n    runtime: runtime\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 480,
+        "wires": [
+            [
+                "b39f269b7a7884a8",
+                "2035f4c57765745b",
+                "75d0028c4e380f22",
+                "be8c100d1826958a",
+                "799a36ae2c3cb994",
+                "7bc6599460b663c9"
+            ]
+        ]
+    },
+    {
+        "id": "b39f269b7a7884a8",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Status Text",
+        "func": "let trs = msg.payload.trs;\nif (trs < 45) msg.payload = \"🔴 Critique\";\nelse if (trs < 65) msg.payload = \"🟠 Faible\";\nelse if (trs < 85) msg.payload = \"🟡 Moyen\";\nelse msg.payload = \"🟢 World Class\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "x": 950,
+        "y": 140,
+        "wires": [
+            [
+                "f08615aa8c66c7f1"
+            ]
+        ]
+    },
+    {
+        "id": "f08615aa8c66c7f1",
+        "type": "ui_text",
+        "z": "b3af4c3f27aab992",
+        "group": "db617c4d0f469ead",
+        "name": "Status Display",
+        "label": "STATUS",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 1160,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "2035f4c57765745b",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Interpretation",
+        "func": "let trs = msg.payload.trs;\nif (trs < 45) msg.payload = \"🔴 Pertes majeures - action urgente\";\nelse if (trs < 65) msg.payload = \"🟠 Performance insuffisante\";\nelse if (trs < 85) msg.payload = \"🟡 Acceptable avec amélioration possible\";\nelse msg.payload = \"🟢 Niveau d'excellence\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "x": 960,
+        "y": 220,
+        "wires": [
+            [
+                "def2030b65817864"
+            ]
+        ]
+    },
+    {
+        "id": "def2030b65817864",
+        "type": "ui_text",
+        "z": "b3af4c3f27aab992",
+        "group": "db617c4d0f469ead",
+        "name": "Interpretation",
+        "label": "INTERPRÉTATION",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 1160,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "75d0028c4e380f22",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Telegram Alert",
+        "func": "let trs = msg.payload.trs;\nlet td = msg.payload.availability;\nlet tp = msg.payload.performance;\nlet tq = msg.payload.quality;\nlet lastState = context.get(\"lastTelegramState\") || \"ok\";\nlet currentState;\nif (trs >= 85) currentState = \"ok\";\nelse if (trs >= 65) currentState = \"moyen\";\nelse if (trs >= 45) currentState = \"faible\";\nelse currentState = \"critique\";\nif (currentState === lastState) return null;\ncontext.set(\"lastTelegramState\", currentState);\nlet alertIcon, statusMsg;\nif (currentState === \"ok\") { alertIcon = \"🏆\"; statusMsg = \"WORLD CLASS — Performance optimale\"; }\nelse if (currentState === \"moyen\") { alertIcon = \"⚠️\"; statusMsg = \"MOYEN — Performance à surveiller\"; }\nelse if (currentState === \"faible\") { alertIcon = \"🟠\"; statusMsg = \"FAIBLE — Performance insuffisante\"; }\nelse { alertIcon = \"🔴\"; statusMsg = \"CRITIQUE — Action immédiate requise\"; }\nmsg.payload = { chatId: 7789638269, type: \"message\", content: `${alertIcon} ${statusMsg}\\n\\n🏭 TRS: ${trs}%\\n📊 TD: ${td}%\\n⚡ TP: ${tp}%\\n✅ TQ: ${tq}%\\n\\nPFA IMI4/2` };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 960,
+        "y": 280,
+        "wires": [
+            [
+                "8de6fb17c4f3a7d1"
+            ]
+        ]
+    },
+    {
+        "id": "8de6fb17c4f3a7d1",
+        "type": "telegram sender",
+        "z": "b3af4c3f27aab992",
+        "name": "Trs Alert Telegram",
+        "bot": "4b8081d78764c615",
+        "haserroroutput": false,
+        "outputs": 1,
+        "x": 1170,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "be8c100d1826958a",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Audio Alert",
+        "func": "let trs = msg.payload.trs;\nlet lastState = context.get(\"lastAudioState\") || \"ok\";\nlet currentState;\nif (trs >= 85) currentState = \"ok\";\nelse if (trs >= 65) currentState = \"moyen\";\nelse if (trs >= 45) currentState = \"faible\";\nelse currentState = \"critique\";\nif (currentState === lastState) return null;\ncontext.set(\"lastAudioState\", currentState);\nif (currentState === \"ok\") msg.payload = \"TRS revenu normal. Machine World Class.\";\nelse if (currentState === \"moyen\") msg.payload = \"Attention. TRS moyen. Surveillance requise.\";\nelse if (currentState === \"faible\") msg.payload = \"Alerte. TRS faible. Intervention nécessaire.\";\nelse msg.payload = \"Alerte critique. Arrêtez la machine immédiatement.\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "x": 970,
+        "y": 360,
+        "wires": [
+            [
+                "50bd0c57c94b6b91"
+            ]
+        ]
+    },
+    {
+        "id": "50bd0c57c94b6b91",
+        "type": "ui_audio",
+        "z": "b3af4c3f27aab992",
+        "name": "Voice Alert",
+        "group": "db617c4d0f469ead",
+        "voice": "Microsoft Sylvie Online (Natural) - French (Canada)",
+        "always": true,
+        "x": 1170,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "799a36ae2c3cb994",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Email Alert",
+        "func": "let trs = msg.payload.trs;\nlet td = msg.payload.availability;\nlet tp = msg.payload.performance;\nlet tq = msg.payload.quality;\n\nlet lastState = context.get(\"lastEmailState\") || \"ok\";\nlet currentState;\n\nif (trs >= 85) currentState = \"ok\";\nelse if (trs >= 65) currentState = \"moyen\";\nelse if (trs >= 45) currentState = \"faible\";\nelse currentState = \"critique\";\n\nif (currentState === lastState) return null;\ncontext.set(\"lastEmailState\", currentState);\n\nlet emailContent = \"\";\nlet subject = \"\";\n\nif (currentState === \"ok\") {\n    subject = `🏆 WORLD CLASS - TRS: ${trs}%`;\n    emailContent = `🏆 WORLD CLASS — Performance optimale\n\n🏭 TRS: ${trs}%\n📊 TD: ${td}%\n⚡ TP: ${tp}%\n✅ TQ: ${tq}%\n\nPFA IMI4/2`;\n}\nelse if (currentState === \"moyen\") {\n    subject = `⚠️ MOYEN - TRS: ${trs}%`;\n    emailContent = `⚠️ MOYEN — Performance à surveiller\n\n🏭 TRS: ${trs}%\n📊 TD: ${td}%\n⚡ TP: ${tp}%\n✅ TQ: ${tq}%\n\nPFA IMI4/2`;\n}\nelse if (currentState === \"faible\") {\n    subject = `🟠 FAIBLE - TRS: ${trs}%`;\n    emailContent = `🟠 ALERTE TRS — FAIBLE — Performance insuffisante, intervention nécessaire\n\n🏭 TRS Global : ${trs}%\n📊 Disponibilité (TD) : ${td}%\n⚡ Performance (TP) : ${tp}%\n✅ Qualité (TQ) : ${tq}%\n\nPFA IMI4/2 — IoT TRS System`;\n}\nelse {\n    subject = `🔴 CRITIQUE - TRS: ${trs}%`;\n    emailContent = `🔴 ALERTE TRS — CRITIQUE — Situation critique, action immédiate requise\n\n🏭 TRS Global : ${trs}%\n📊 Disponibilité (TD) : ${td}%\n⚡ Performance (TP) : ${tp}%\n✅ Qualité (TQ) : ${tq}%\n\nPFA IMI4/2 — IoT TRS System`;\n}\n\nmsg.topic = subject;\nmsg.payload = emailContent;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 970,
+        "y": 440,
+        "wires": [
+            [
+                "3681641c465904fa",
+                "e277822f22a96413"
+            ]
+        ]
+    },
+    {
+        "id": "e277822f22a96413",
+        "type": "e-mail",
+        "z": "b3af4c3f27aab992",
+        "server": "smtp.gmail.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": true,
+        "name": "omaymayakoubi32@gmail.com",
+        "dname": "TRS Alert",
+        "x": 1160,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "3681641c465904fa",
+        "type": "debug",
+        "z": "b3af4c3f27aab992",
+        "name": "Debug Output",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1140,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "9a7d57af39bd46af",
+        "type": "mqtt out",
+        "z": "b3af4c3f27aab992",
+        "name": "Send Params to ESP32",
+        "topic": "pfa/trs/commands",
+        "qos": 0,
+        "retain": false,
+        "broker": "d2aba5db6c3d1e68",
+        "x": 390,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "0320601794c8a11e",
+        "type": "function",
+        "z": "b3af4c3f27aab992",
+        "name": "Format Dashboard Params",
+        "func": "if (msg.topic === 'params') {\n    let params = {\n        nominal_rpm: msg.payload.nominal_rpm,\n        planned_time: msg.payload.planned_time,\n        machine_name: msg.payload.machine_name\n    };\n    msg.payload = params;\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "x": 180,
+        "y": 80,
+        "wires": [
+            [
+                "9a7d57af39bd46af"
+            ]
+        ]
+    },
+    {
+        "id": "7bc6599460b663c9",
+        "type": "ui_template",
+        "z": "b3af4c3f27aab992",
+        "group": "321e972868277d53",
+        "name": "Dashboard",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "format": "<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n    <style>\n        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700;800&display=swap');\n        \n        * {\n            margin: 0;\n            padding: 0;\n            box-sizing: border-box;\n        }\n        \n        html, body {\n            width: 100%;\n            height: 100%;\n            margin: 0;\n            padding: 0;\n            overflow: hidden;\n            position: fixed;\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom: 0;\n        }\n        \n        body {\n            background: radial-gradient(circle at 20% 30%, #0a0a1a, #030308);\n            font-family: 'Exo 2', 'Orbitron', sans-serif;\n            color: #ffffff;\n        }\n        \n        .dashboard-container {\n            position: fixed;\n            top: 0;\n            left: 0;\n            width: 100vw;\n            height: 100vh;\n            overflow-y: auto;\n            padding: 30px 20px 20px 20px;\n            background: linear-gradient(135deg, rgba(10, 10, 25, 0.95), rgba(5, 5, 15, 0.98));\n        }\n        \n        /* Modal for PIN */\n        .modal {\n            display: none;\n            position: fixed;\n            top: 0;\n            left: 0;\n            width: 100%;\n            height: 100%;\n            background: rgba(0, 0, 0, 0.9);\n            backdrop-filter: blur(10px);\n            z-index: 1000;\n            justify-content: center;\n            align-items: center;\n        }\n        \n        .modal-content {\n            background: linear-gradient(135deg, rgba(30, 30, 60, 0.95), rgba(20, 20, 45, 0.98));\n            border-radius: 20px;\n            padding: 30px;\n            border: 1px solid rgba(0, 212, 255, 0.5);\n            text-align: center;\n            min-width: 350px;\n            box-shadow: 0 0 50px rgba(0, 212, 255, 0.3);\n        }\n        \n        .modal-content h3 {\n            color: #00d4ff;\n            margin-bottom: 20px;\n            font-size: 24px;\n        }\n        \n        .pin-input {\n            width: 100%;\n            background: rgba(15, 15, 35, 0.9);\n            border: 1px solid rgba(0, 212, 255, 0.4);\n            color: #ffffff;\n            padding: 15px;\n            border-radius: 12px;\n            font-size: 20px;\n            text-align: center;\n            letter-spacing: 5px;\n            margin-bottom: 15px;\n        }\n        \n        .pin-btn {\n            background: linear-gradient(135deg, #00d4ff, #0088aa);\n            border: none;\n            color: white;\n            padding: 12px 25px;\n            border-radius: 10px;\n            font-weight: bold;\n            cursor: pointer;\n            margin: 5px;\n            transition: all 0.3s;\n        }\n        \n        .pin-btn:hover {\n            transform: scale(1.05);\n            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);\n        }\n        \n        .error-msg {\n            color: #ff4757;\n            margin-top: 10px;\n            font-size: 14px;\n        }\n        \n        /* Header */\n        .header {\n            display: flex;\n            justify-content: space-between;\n            align-items: center;\n            padding: 20px 30px;\n            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(0, 100, 150, 0.15));\n            border-radius: 20px;\n            backdrop-filter: blur(10px);\n            border: 1px solid rgba(0, 212, 255, 0.6);\n            margin-bottom: 30px;\n            margin-top: 10px;\n        }\n        \n        .logo h1 {\n            font-size: 28px;\n            font-weight: 800;\n            background: linear-gradient(135deg, #00d4ff, #ffffff, #00ffff);\n            -webkit-background-clip: text;\n            background-clip: text;\n            color: transparent;\n        }\n        \n        .logo p {\n            font-size: 11px;\n            color: #00d4ff;\n            letter-spacing: 3px;\n        }\n        \n        .machine-name {\n            font-size: 38px;\n            font-weight: 900;\n            letter-spacing: 6px;\n            background: linear-gradient(135deg, #ffffff, #00d4ff);\n            -webkit-background-clip: text;\n            background-clip: text;\n            color: transparent;\n        }\n        \n        .live-badge {\n            display: flex;\n            align-items: center;\n            gap: 10px;\n            background: rgba(0, 255, 136, 0.2);\n            padding: 8px 20px;\n            border-radius: 30px;\n            border: 1px solid rgba(0, 255, 136, 0.6);\n        }\n        \n        .live-dot {\n            width: 12px;\n            height: 12px;\n            background: #00ff88;\n            border-radius: 50%;\n            animation: pulse 1.5s infinite;\n            box-shadow: 0 0 15px #00ff88;\n        }\n        \n        @keyframes pulse {\n            0%, 100% { opacity: 1; transform: scale(1); }\n            50% { opacity: 0.5; transform: scale(0.8); }\n        }\n        \n        #clock {\n            color: #00d4ff;\n            font-weight: 600;\n            font-size: 18px;\n            font-family: 'Orbitron', monospace;\n        }\n        \n        .main-grid {\n            display: grid;\n            grid-template-columns: 320px 1fr 320px;\n            gap: 20px;\n            margin-bottom: 25px;\n        }\n        \n        .card {\n            background: linear-gradient(135deg, rgba(25, 25, 50, 0.9), rgba(15, 15, 35, 0.95));\n            border-radius: 20px;\n            backdrop-filter: blur(10px);\n            border: 1px solid rgba(0, 212, 255, 0.3);\n            overflow: hidden;\n            transition: transform 0.3s, box-shadow 0.3s;\n        }\n        \n        .card:hover {\n            transform: translateY(-3px);\n            box-shadow: 0 15px 35px rgba(0, 212, 255, 0.2);\n            border-color: rgba(0, 212, 255, 0.6);\n        }\n        \n        .card-header {\n            padding: 18px 20px;\n            border-bottom: 1px solid rgba(0, 212, 255, 0.3);\n            font-size: 14px;\n            font-weight: 700;\n            letter-spacing: 3px;\n            text-transform: uppercase;\n            background: rgba(0, 0, 0, 0.3);\n            color: #00d4ff;\n        }\n        \n        .card-content {\n            padding: 20px;\n        }\n        \n        .trs-center {\n            display: flex;\n            flex-direction: column;\n            align-items: center;\n            justify-content: center;\n            min-height: 460px;\n        }\n        \n        .trs-label-large {\n            font-size: 22px;\n            font-weight: 800;\n            letter-spacing: 10px;\n            color: #00d4ff;\n            text-transform: uppercase;\n            margin-bottom: 25px;\n            text-shadow: 0 0 25px rgba(0, 212, 255, 0.8);\n        }\n        \n        .trs-value-large {\n            font-size: 180px;\n            font-weight: 900;\n            line-height: 1;\n            background: linear-gradient(135deg, #ffffff, #00d4ff);\n            -webkit-background-clip: text;\n            background-clip: text;\n            color: transparent;\n            margin: 20px 0;\n        }\n        \n        .trs-percent-large {\n            font-size: 60px;\n            color: rgba(0, 212, 255, 0.5);\n        }\n        \n        .trs-status {\n            margin-top: 25px;\n            padding: 15px 45px;\n            font-size: 24px;\n            font-weight: 900;\n            letter-spacing: 5px;\n            border-radius: 50px;\n            background: rgba(0, 0, 0, 0.4);\n            backdrop-filter: blur(10px);\n        }\n        \n        .stat-item {\n            display: flex;\n            justify-content: space-between;\n            padding: 12px 0;\n            border-bottom: 1px solid rgba(0, 212, 255, 0.15);\n        }\n        \n        .stat-label {\n            font-size: 13px;\n            color: #8b9bb4;\n            letter-spacing: 1px;\n        }\n        \n        .stat-value {\n            font-size: 22px;\n            font-weight: 700;\n            font-family: 'Orbitron', monospace;\n        }\n        \n        .kpi-row {\n            display: grid;\n            grid-template-columns: repeat(3, 1fr);\n            gap: 20px;\n            margin-bottom: 25px;\n        }\n        \n        .kpi-card {\n            padding: 20px;\n            text-align: center;\n        }\n        \n        .kpi-title {\n            font-size: 20px;\n            font-weight: 800;\n            letter-spacing: 3px;\n            margin-bottom: 15px;\n        }\n        \n        .kpi-value {\n            font-size: 88px;\n            font-weight: 900;\n            margin: 10px 0;\n            line-height: 1;\n        }\n        \n        .kpi-unit {\n            font-size: 32px;\n        }\n        \n        .kpi-bar-container {\n            background: rgba(0, 0, 0, 0.5);\n            border-radius: 20px;\n            height: 8px;\n            overflow: hidden;\n            margin-top: 15px;\n        }\n        \n        .kpi-bar {\n            height: 100%;\n            border-radius: 20px;\n            transition: width 0.5s ease;\n        }\n        \n        .graph-container {\n            background: linear-gradient(135deg, rgba(25, 25, 50, 0.9), rgba(15, 15, 35, 0.95));\n            border-radius: 20px;\n            padding: 20px;\n            border: 1px solid rgba(0, 212, 255, 0.3);\n            margin-bottom: 25px;\n        }\n        \n        .graph-title {\n            font-size: 16px;\n            font-weight: 700;\n            letter-spacing: 3px;\n            margin-bottom: 20px;\n            color: #ffd700;\n        }\n        \n        canvas {\n            width: 100%;\n            height: 250px;\n        }\n        \n        .button-section {\n            display: flex;\n            gap: 15px;\n            justify-content: center;\n            margin-top: 10px;\n            flex-wrap: wrap;\n        }\n        \n        .action-btn {\n            background: linear-gradient(135deg, #2a2a4a, #1a1a3a);\n            border: 1px solid rgba(0, 212, 255, 0.4);\n            color: #00d4ff;\n            padding: 12px 25px;\n            border-radius: 12px;\n            font-weight: 700;\n            font-size: 14px;\n            letter-spacing: 2px;\n            cursor: pointer;\n            transition: all 0.3s;\n            display: flex;\n            align-items: center;\n            gap: 10px;\n        }\n        \n        .action-btn:hover {\n            transform: translateY(-2px);\n            border-color: #00d4ff;\n            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);\n        }\n        \n        .td-color { background: linear-gradient(135deg, #00d4ff, #00ffff); -webkit-background-clip: text; background-clip: text; color: transparent; }\n        .tp-color { background: linear-gradient(135deg, #ffd700, #ffed4e); -webkit-background-clip: text; background-clip: text; color: transparent; }\n        .tq-color { background: linear-gradient(135deg, #00ff88, #55ffaa); -webkit-background-clip: text; background-clip: text; color: transparent; }\n        .td-bar-bg { background: linear-gradient(90deg, #0088aa, #00d4ff); }\n        .tp-bar-bg { background: linear-gradient(90deg, #cc9900, #ffd700); }\n        .tq-bar-bg { background: linear-gradient(90deg, #00aa55, #00ff88); }\n        \n        .status-worldclass { background: linear-gradient(135deg, rgba(0, 255, 136, 0.3), rgba(0, 200, 100, 0.4)); border: 2px solid #00ff88; color: #00ff88; box-shadow: 0 0 40px rgba(0, 255, 136, 0.4); }\n        .status-moyen { background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(200, 170, 0, 0.4)); border: 2px solid #ffd700; color: #ffd700; box-shadow: 0 0 40px rgba(255, 215, 0, 0.4); }\n        .status-faible { background: linear-gradient(135deg, rgba(255, 107, 53, 0.3), rgba(200, 80, 40, 0.4)); border: 2px solid #ff6b35; color: #ff6b35; box-shadow: 0 0 40px rgba(255, 107, 53, 0.4); }\n        .status-critique { background: linear-gradient(135deg, rgba(255, 71, 87, 0.3), rgba(200, 50, 60, 0.4)); border: 2px solid #ff4757; color: #ff4757; animation: blink 1.5s infinite; box-shadow: 0 0 40px rgba(255, 71, 87, 0.4); }\n        \n        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }\n        \n        .param-input {\n            width: 100%;\n            background: rgba(15, 15, 35, 0.9);\n            border: 1px solid rgba(0, 212, 255, 0.4);\n            color: #ffffff;\n            padding: 14px;\n            border-radius: 12px;\n            margin-bottom: 15px;\n            font-size: 14px;\n        }\n        \n        .param-input:focus {\n            outline: none;\n            border-color: #00d4ff;\n            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);\n        }\n        \n        .btn-submit {\n            width: 100%;\n            background: linear-gradient(135deg, #00d4ff, #0088aa);\n            border: none;\n            color: #ffffff;\n            padding: 14px;\n            border-radius: 12px;\n            font-weight: 800;\n            font-size: 16px;\n            letter-spacing: 3px;\n            cursor: pointer;\n            transition: all 0.3s;\n            text-transform: uppercase;\n        }\n        \n        .btn-submit:hover {\n            transform: scale(1.02);\n            box-shadow: 0 0 30px rgba(0, 212, 255, 0.7);\n        }\n    </style>\n    <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n</head>\n<body>\n<div class=\"dashboard-container\">\n    <!-- PIN Modal -->\n    <div id=\"pinModal\" class=\"modal\">\n        <div class=\"modal-content\">\n            <h3>🔐 ACCÈS SÉCURISÉ</h3>\n            <input type=\"password\" id=\"pinInput\" class=\"pin-input\" placeholder=\"Entrez le code PIN\" maxlength=\"6\">\n            <div>\n                <button class=\"pin-btn\" onclick=\"verifyPin()\">VALIDER</button>\n                <button class=\"pin-btn\" onclick=\"closePinModal()\">ANNULER</button>\n            </div>\n            <div id=\"pinError\" class=\"error-msg\"></div>\n        </div>\n    </div>\n\n    <!-- Header -->\n    <div class=\"header\">\n        <div class=\"logo\">\n            <h1>⚡ TRS MONITORING</h1>\n            <p>INDUSTRIAL IOT — PFA IMI4/2</p>\n        </div>\n        <div class=\"machine-info\">\n            <div class=\"machine-name\" id=\"machineNameDisplay\">MACHINE</div>\n            <div style=\"font-size: 11px; color: #00d4ff; margin-top: 5px;\">SYSTÈME AUTONOME DE SURVEILLANCE</div>\n        </div>\n        <div class=\"live-badge\">\n            <div class=\"live-dot\"></div>\n            <span>LIVE DATA</span>\n            <span id=\"clock\" style=\"margin-left: 12px;\">--:--:--</span>\n        </div>\n    </div>\n    \n    <!-- Main Grid -->\n    <div class=\"main-grid\">\n        <div class=\"card\">\n            <div class=\"card-header\">⚙️ PARAMÈTRES</div>\n            <div class=\"card-content\">\n                <input class=\"param-input\" id=\"paramName\" placeholder=\"Nom Machine\" value=\"MACHINE\">\n                <input class=\"param-input\" id=\"paramRPM\" type=\"number\" placeholder=\"RPM Nominal\" value=\"1500\">\n                <input class=\"param-input\" id=\"paramTime\" type=\"number\" placeholder=\"Temps Requis (min)\" value=\"480\">\n                <button class=\"btn-submit\" onclick=\"sendParams()\">▶ CONFIRMER</button>\n            </div>\n        </div>\n        \n        <div class=\"card trs-center\">\n            <div class=\"trs-label-large\">▸ TRS GLOBAL ◂</div>\n            <div class=\"trs-value-large\">\n                <span id=\"trsValue\">0.0</span><span class=\"trs-percent-large\">%</span>\n            </div>\n            <div class=\"trs-status\" id=\"statusBadge\">— INITIALISATION —</div>\n        </div>\n        \n        <div class=\"card\">\n            <div class=\"card-header\">📊 TEMPS RÉEL</div>\n            <div class=\"card-content\">\n                <div class=\"stat-item\"><span class=\"stat-label\">État Machine</span><span class=\"stat-value\" id=\"statState\" style=\"color:#00ff88\">—</span></div>\n                <div class=\"stat-item\"><span class=\"stat-label\">RPM Réel</span><span class=\"stat-value\" id=\"statRPM\" style=\"color:#ffd700\">0 RPM</span></div>\n                <div class=\"stat-item\"><span class=\"stat-label\">Pièces Bonnes</span><span class=\"stat-value\" id=\"statGood\" style=\"color:#00ff88\">0</span></div>\n                <div class=\"stat-item\"><span class=\"stat-label\">Rebuts</span><span class=\"stat-value\" id=\"statReject\" style=\"color:#ff6b35\">0</span></div>\n                <div class=\"stat-item\"><span class=\"stat-label\">Total Pièces</span><span class=\"stat-value\" id=\"statTotal\" style=\"color:#00d4ff\">0</span></div>\n                <div class=\"stat-item\"><span class=\"stat-label\">Composante Faible</span><span class=\"stat-value\" id=\"statWeak\" style=\"color:#ffd700\">—</span></div>\n            </div>\n        </div>\n    </div>\n    \n    <!-- KPI Cards -->\n    <div class=\"kpi-row\">\n        <div class=\"card kpi-card\"><div class=\"kpi-title td-color\">▸ TD - DISPONIBILITÉ</div><div class=\"kpi-value td-color\" id=\"tdValue\">0<span class=\"kpi-unit\">%</span></div><div class=\"kpi-bar-container\"><div class=\"kpi-bar td-bar-bg\" id=\"tdBar\" style=\"width:0%\"></div></div></div>\n        <div class=\"card kpi-card\"><div class=\"kpi-title tp-color\">▸ TP - PERFORMANCE</div><div class=\"kpi-value tp-color\" id=\"tpValue\">0<span class=\"kpi-unit\">%</span></div><div class=\"kpi-bar-container\"><div class=\"kpi-bar tp-bar-bg\" id=\"tpBar\" style=\"width:0%\"></div></div></div>\n        <div class=\"card kpi-card\"><div class=\"kpi-title tq-color\">▸ TQ - QUALITÉ</div><div class=\"kpi-value tq-color\" id=\"tqValue\">0<span class=\"kpi-unit\">%</span></div><div class=\"kpi-bar-container\"><div class=\"kpi-bar tq-bar-bg\" id=\"tqBar\" style=\"width:0%\"></div></div></div>\n    </div>\n    \n    <!-- Graph -->\n    <div class=\"graph-container\">\n        <div class=\"graph-title\">📈 ÉVOLUTION RPM RÉEL (TEMPS RÉEL)</div>\n        <canvas id=\"rpmChart\"></canvas>\n    </div>\n    \n    <!-- Action Buttons -->\n    <div class=\"button-section\">\n        <button class=\"action-btn\" onclick=\"exportCSV()\">📥 EXPORTER DONNÉES (CSV)</button>\n        <button class=\"action-btn\" onclick=\"exportHTML()\">📊 EXPORTER RAPPORT COLORÉ (HTML)</button>\n        <button class=\"action-btn\" onclick=\"showHistory()\">📜 VOIR HISTORIQUE</button>\n        <button class=\"action-btn\" onclick=\"openPinModal()\">🔒 ACCÈS SÉCURISÉ</button>\n    </div>\n</div>\n\n<script>\n    (function(scope) {\n        // ========== CONFIGURATION ==========\n        const SECRET_PIN = \"1234\";  // Change this to your desired PIN code\n        \n        let userSetMachineName = null;\n        let rpmData = [];\n        let maxDataPoints = 30;\n        let csvDataHistory = [];\n        let isAuthenticated = false;\n        \n        // ========== PIN MODAL FUNCTIONS ==========\n        window.openPinModal = function() {\n            document.getElementById('pinModal').style.display = 'flex';\n            document.getElementById('pinInput').value = '';\n            document.getElementById('pinError').textContent = '';\n        };\n        \n        window.closePinModal = function() {\n            document.getElementById('pinModal').style.display = 'none';\n        };\n        \n        window.verifyPin = function() {\n            const enteredPin = document.getElementById('pinInput').value;\n            if (enteredPin === SECRET_PIN) {\n                isAuthenticated = true;\n                closePinModal();\n                alert(\"✅ ACCÈS AUTORISÉ - Vous pouvez maintenant exporter les données!\");\n            } else {\n                document.getElementById('pinError').textContent = '❌ Code PIN incorrect! Accès refusé.';\n                setTimeout(() => { document.getElementById('pinError').textContent = ''; }, 3000);\n            }\n        };\n        \n        // ========== GET CURRENT DATA ==========\n        function getCurrentData() {\n            const trsValue = parseFloat(document.getElementById('trsValue').textContent) || 0;\n            let trsStatus = document.getElementById('statusBadge').textContent;\n            \n            // Determine status color class for HTML\n            let statusColor = '';\n            if (trsValue >= 85) statusColor = 'world-class';\n            else if (trsValue >= 65) statusColor = 'moyen';\n            else if (trsValue >= 45) statusColor = 'faible';\n            else statusColor = 'critique';\n            \n            return {\n                timestamp: new Date().toLocaleString('fr-FR'),\n                machine_name: userSetMachineName || document.getElementById('machineNameDisplay').textContent,\n                trs: trsValue,\n                td: parseFloat(document.getElementById('tdValue').textContent) || 0,\n                tp: parseFloat(document.getElementById('tpValue').textContent) || 0,\n                tq: parseFloat(document.getElementById('tqValue').textContent) || 0,\n                trs_status: trsStatus,\n                trs_status_color: statusColor,\n                rpm_reel: parseInt(document.getElementById('statRPM').textContent) || 0,\n                good_pieces: parseInt(document.getElementById('statGood').textContent) || 0,\n                bad_pieces: parseInt(document.getElementById('statReject').textContent) || 0,\n                total_pieces: parseInt(document.getElementById('statTotal').textContent) || 0,\n                machine_state: document.getElementById('statState').textContent,\n                weakest_component: document.getElementById('statWeak').textContent,\n                nominal_rpm: parseInt(document.getElementById('paramRPM').value) || 1500,\n                planned_time: parseInt(document.getElementById('paramTime').value) || 480\n            };\n        }\n        \n        // ========== EXPORT CSV (Existing) ==========\n        window.exportCSV = function() {\n            if (!isAuthenticated) { openPinModal(); return; }\n            \n            const currentData = getCurrentData();\n            csvDataHistory.push(currentData);\n            \n            const headers = ['Date/Heure', 'Machine', 'TRS (%)', 'TD (%)', 'TP (%)', 'TQ (%)', 'Statut TRS', 'RPM Réel', 'Pièces Bonnes', 'Pièces Mauvaises', 'Total Pièces', 'État Machine', 'Composante Faible', 'RPM Nominal', 'Temps Requis (min)'];\n            const csvRows = [headers];\n            \n            csvDataHistory.forEach(data => {\n                csvRows.push([data.timestamp, data.machine_name, data.trs.toFixed(1), data.td.toFixed(1), data.tp.toFixed(1), data.tq.toFixed(1), data.trs_status, data.rpm_reel, data.good_pieces, data.bad_pieces, data.total_pieces, data.machine_state, data.weakest_component, data.nominal_rpm, data.planned_time]);\n            });\n            \n            csvRows.push([currentData.timestamp, currentData.machine_name, currentData.trs.toFixed(1), currentData.td.toFixed(1), currentData.tp.toFixed(1), currentData.tq.toFixed(1), currentData.trs_status, currentData.rpm_reel, currentData.good_pieces, currentData.bad_pieces, currentData.total_pieces, currentData.machine_state, currentData.weakest_component, currentData.nominal_rpm, currentData.planned_time]);\n            \n            const csvContent = csvRows.map(row => row.join(';')).join('\\n');\n            const blob = new Blob([\"\\uFEFF\" + csvContent], { type: 'text/csv;charset=utf-8;' });\n            const link = document.createElement('a');\n            const url = URL.createObjectURL(blob);\n            const filename = `TRS_Data_${currentData.machine_name}_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;\n            \n            link.setAttribute('href', url);\n            link.setAttribute('download', filename);\n            document.body.appendChild(link);\n            link.click();\n            document.body.removeChild(link);\n            URL.revokeObjectURL(url);\n            \n            alert(`✅ Export CSV réussi!\\n📁 Fichier: ${filename}\\n📊 ${csvDataHistory.length + 1} enregistrements`);\n        };\n        \n        // ========== EXPORT HTML COLORED REPORT (NEW) ==========\n        window.exportHTML = function() {\n            if (!isAuthenticated) { openPinModal(); return; }\n            \n            const currentData = getCurrentData();\n            csvDataHistory.push(currentData);\n            \n            // Build HTML report\n            const htmlContent = `<!DOCTYPE html>\n<html lang=\"fr\">\n<head>\n    <meta charset=\"UTF-8\">\n    <title>Rapport TRS - ${currentData.machine_name}</title>\n    <style>\n        * { margin: 0; padding: 0; box-sizing: border-box; }\n        body {\n            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n            background: linear-gradient(135deg, #0a0a1a, #1a1a3a);\n            padding: 40px;\n            color: #333;\n        }\n        .container {\n            max-width: 1200px;\n            margin: 0 auto;\n            background: white;\n            border-radius: 20px;\n            box-shadow: 0 20px 60px rgba(0,0,0,0.3);\n            overflow: hidden;\n        }\n        .header {\n            background: linear-gradient(135deg, #00d4ff, #0088aa);\n            color: white;\n            padding: 30px;\n            text-align: center;\n        }\n        .header h1 { font-size: 32px; margin-bottom: 10px; }\n        .header p { opacity: 0.9; }\n        .summary {\n            display: grid;\n            grid-template-columns: repeat(4, 1fr);\n            gap: 20px;\n            padding: 30px;\n            background: #f5f5f5;\n        }\n        .summary-card {\n            text-align: center;\n            padding: 20px;\n            border-radius: 15px;\n            background: white;\n            box-shadow: 0 5px 15px rgba(0,0,0,0.1);\n        }\n        .summary-card .value { font-size: 48px; font-weight: bold; margin: 10px 0; }\n        .summary-card .label { color: #666; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }\n        .world-class .value { color: #00cc66; }\n        .moyen .value { color: #ffd700; }\n        .faible .value { color: #ff6b35; }\n        .critique .value { color: #ff4757; }\n        \n        .kpi-grid {\n            display: grid;\n            grid-template-columns: repeat(3, 1fr);\n            gap: 20px;\n            padding: 30px;\n        }\n        .kpi-box {\n            background: linear-gradient(135deg, #f8f9fa, #e9ecef);\n            border-radius: 15px;\n            padding: 25px;\n            text-align: center;\n            border-left: 5px solid;\n        }\n        .kpi-box.td { border-left-color: #00d4ff; }\n        .kpi-box.tp { border-left-color: #ffd700; }\n        .kpi-box.tq { border-left-color: #00ff88; }\n        .kpi-box .kpi-value { font-size: 56px; font-weight: bold; margin: 15px 0; }\n        .kpi-box.td .kpi-value { color: #00d4ff; }\n        .kpi-box.tp .kpi-value { color: #ffd700; }\n        .kpi-box.tq .kpi-value { color: #00cc66; }\n        \n        .details-table {\n            padding: 30px;\n        }\n        table {\n            width: 100%;\n            border-collapse: collapse;\n            background: white;\n            border-radius: 10px;\n            overflow: hidden;\n        }\n        th, td {\n            padding: 15px;\n            text-align: left;\n            border-bottom: 1px solid #e0e0e0;\n        }\n        th {\n            background: linear-gradient(135deg, #00d4ff, #0088aa);\n            color: white;\n            font-weight: 600;\n        }\n        tr:hover { background: #f5f5f5; }\n        \n        .history-section {\n            padding: 30px;\n            border-top: 2px solid #e0e0e0;\n            background: #fafafa;\n        }\n        .history-section h3 { margin-bottom: 20px; color: #00d4ff; }\n        \n        .footer {\n            background: #2a2a4a;\n            color: white;\n            text-align: center;\n            padding: 20px;\n            font-size: 12px;\n        }\n        \n        .badge {\n            display: inline-block;\n            padding: 5px 15px;\n            border-radius: 20px;\n            font-weight: bold;\n        }\n        .badge-world { background: #00cc66; color: white; }\n        .badge-moyen { background: #ffd700; color: #333; }\n        .badge-faible { background: #ff6b35; color: white; }\n        .badge-critique { background: #ff4757; color: white; }\n    </style>\n</head>\n<body>\n<div class=\"container\">\n    <div class=\"header\">\n        <h1>📊 RAPPORT TRS INDUSTRIEL</h1>\n        <p>PFA IMI4/2 — Système Autonome de Surveillance</p>\n        <p style=\"margin-top: 10px;\">Généré le: ${currentData.timestamp}</p>\n    </div>\n    \n    <div class=\"summary\">\n        <div class=\"summary-card ${currentData.trs_status_color}\">\n            <div class=\"label\">TRS GLOBAL</div>\n            <div class=\"value\">${currentData.trs.toFixed(1)}%</div>\n            <div class=\"badge badge-${currentData.trs_status_color === 'world-class' ? 'world' : currentData.trs_status_color === 'moyen' ? 'moyen' : currentData.trs_status_color === 'faible' ? 'faible' : 'critique'}\">${currentData.trs_status}</div>\n        </div>\n        <div class=\"summary-card\">\n            <div class=\"label\">PRODUCTION TOTALE</div>\n            <div class=\"value\">${currentData.total_pieces}</div>\n            <div>✅ ${currentData.good_pieces} bons / ❌ ${currentData.bad_pieces} rebuts</div>\n        </div>\n        <div class=\"summary-card\">\n            <div class=\"label\">RPM MOYEN</div>\n            <div class=\"value\">${currentData.rpm_reel}</div>\n            <div>tr/min</div>\n        </div>\n        <div class=\"summary-card\">\n            <div class=\"label\">COMPOSANTE FAIBLE</div>\n            <div class=\"value\">${currentData.weakest_component}</div>\n            <div>À améliorer</div>\n        </div>\n    </div>\n    \n    <div class=\"kpi-grid\">\n        <div class=\"kpi-box td\">\n            <h3>📊 TD - Disponibilité</h3>\n            <div class=\"kpi-value\">${currentData.td.toFixed(1)}%</div>\n            <p>Performance machine</p>\n        </div>\n        <div class=\"kpi-box tp\">\n            <h3>⚡ TP - Performance</h3>\n            <div class=\"kpi-value\">${currentData.tp.toFixed(1)}%</div>\n            <p>Efficacité production</p>\n        </div>\n        <div class=\"kpi-box tq\">\n            <h3>✅ TQ - Qualité</h3>\n            <div class=\"kpi-value\">${currentData.tq.toFixed(1)}%</div>\n            <p>Pièces conformes</p>\n        </div>\n    </div>\n    \n    <div class=\"details-table\">\n        <h3 style=\"margin-bottom: 20px; color: #00d4ff;\">📋 DÉTAILS COMPLETS</h3>\n        <table>\n            <tr><th>Paramètre</th><th>Valeur</th></tr>\n            <tr><td>🏭 Nom Machine</td><td>${currentData.machine_name}</td></tr>\n            <tr><td>📊 TRS Global</td><td style=\"color: ${currentData.trs >= 85 ? '#00cc66' : currentData.trs >= 65 ? '#ffd700' : currentData.trs >= 45 ? '#ff6b35' : '#ff4757'}; font-weight: bold;\">${currentData.trs.toFixed(1)}% (${currentData.trs_status})</td></tr>\n            <tr><td>⏱️ Disponibilité (TD)</td><td>${currentData.td.toFixed(1)}%</td></tr>\n            <tr><td>⚡ Performance (TP)</td><td>${currentData.tp.toFixed(1)}%</td></tr>\n            <tr><td>✅ Qualité (TQ)</td><td>${currentData.tq.toFixed(1)}%</td></tr>\n            <tr><td>🔄 RPM Réel</td><td>${currentData.rpm_reel} tr/min</td></tr>\n            <tr><td>🎯 RPM Nominal</td><td>${currentData.nominal_rpm} tr/min</td></tr>\n            <tr><td>📦 Pièces Bonnes</td><td style=\"color: #00cc66;\">${currentData.good_pieces}</td></tr>\n            <tr><td>❌ Rebuts</td><td style=\"color: #ff4757;\">${currentData.bad_pieces}</td></tr>\n            <tr><td>📈 Total Production</td><td>${currentData.total_pieces}</td></tr>\n            <tr><td>⏰ Temps Requis</td><td>${currentData.planned_time} minutes</td></tr>\n            <tr><td>🔧 État Machine</td><td style=\"color: ${currentData.machine_state === 'EN MARCHE' ? '#00cc66' : '#ff4757'};\">${currentData.machine_state}</td></tr>\n            <tr><td>⚠️ Composante Faible</td><td style=\"color: #ff6b35; font-weight: bold;\">${currentData.weakest_component}</td></tr>\n        </table>\n    </div>\n    \n    <div class=\"history-section\">\n        <h3>📜 HISTORIQUE DES EXPORTATIONS</h3>\n        <table>\n            <tr><th>Date de l'export</th><th>Machine</th><th>TRS</th><th>Production</th></tr>\n            ${csvDataHistory.slice(-10).reverse().map(data => `\n            <tr>\n                <td>${data.timestamp}</td>\n                <td>${data.machine_name}</td>\n                <td style=\"color: ${data.trs >= 85 ? '#00cc66' : data.trs >= 65 ? '#ffd700' : data.trs >= 45 ? '#ff6b35' : '#ff4757'};\">${data.trs.toFixed(1)}%</td>\n                <td>${data.total_pieces} pièces</td>\n            </tr>\n            `).join('')}\n        </table>\n        <p style=\"margin-top: 15px; text-align: center; color: #666;\">📊 Total exports: ${csvDataHistory.length} | Dernière mise à jour: ${currentData.timestamp}</p>\n    </div>\n    \n    <div class=\"footer\">\n        <p>PFA IMI4/2 — IoT TRS Monitoring System</p>\n        <p>Rapport généré automatiquement par Node-RED Dashboard</p>\n    </div>\n</div>\n</body>\n</html>`;\n            \n            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });\n            const link = document.createElement('a');\n            const url = URL.createObjectURL(blob);\n            const filename = `TRS_Rapport_${currentData.machine_name}_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.html`;\n            \n            link.setAttribute('href', url);\n            link.setAttribute('download', filename);\n            document.body.appendChild(link);\n            link.click();\n            document.body.removeChild(link);\n            URL.revokeObjectURL(url);\n            \n            alert(`✅ Export HTML coloré réussi!\\n📁 Fichier: ${filename}\\n📊 Rapport professionnel généré`);\n        };\n        \n        // ========== SHOW HISTORY ==========\n        window.showHistory = function() {\n            if (!isAuthenticated) { openPinModal(); return; }\n            if (csvDataHistory.length === 0) { alert(\"📭 Aucune donnée historique. Exportez d'abord des données!\"); return; }\n            \n            let historyText = \"📊 HISTORIQUE DES DONNÉES TRS\\n\" + \"=\".repeat(50) + \"\\n\\n\";\n            csvDataHistory.slice(-10).forEach((data, index) => {\n                historyText += `[${index + 1}] ${data.timestamp}\\n`;\n                historyText += `   Machine: ${data.machine_name}\\n`;\n                historyText += `   TRS: ${data.trs}% (${data.trs_status})\\n`;\n                historyText += `   TD: ${data.td}% | TP: ${data.tp}% | TQ: ${data.tq}%\\n`;\n                historyText += `   Production: ${data.good_pieces} bons / ${data.bad_pieces} rebuts\\n`;\n                historyText += `   RPM: ${data.rpm_reel} tr/min\\n`;\n                historyText += \"-\".repeat(40) + \"\\n\";\n            });\n            historyText += `\\n📈 Total exports: ${csvDataHistory.length}`;\n            alert(historyText);\n        };\n        \n        // ========== CHART INITIALIZATION ==========\n        var ctx = document.getElementById('rpmChart').getContext('2d');\n        var rpmChart = new Chart(ctx, {\n            type: 'line',\n            data: { labels: [], datasets: [{ label: 'RPM Réel', data: [], borderColor: '#00d4ff', backgroundColor: 'rgba(0, 212, 255, 0.15)', borderWidth: 3, fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#00d4ff', pointBorderColor: '#ffffff', pointBorderWidth: 2 }] },\n            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#a0b0c8' } } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(100, 100, 150, 0.2)' }, title: { display: true, text: 'RPM', color: '#a0b0c8' }, ticks: { color: '#a0b0c8' } }, x: { grid: { color: 'rgba(100, 100, 150, 0.2)' }, title: { display: true, text: 'Mesures', color: '#a0b0c8' }, ticks: { color: '#a0b0c8' } } } }\n        });\n        \n        function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('fr-FR'); }\n        setInterval(updateClock, 1000);\n        updateClock();\n        \n        scope.$watch('msg', function(msg) {\n            if (!msg || !msg.payload) return;\n            var p = msg.payload;\n            var trs = p.trs || 0;\n            document.getElementById('trsValue').innerHTML = trs.toFixed(1);\n            document.getElementById('tdValue').innerHTML = (p.availability || 0).toFixed(1) + '<span class=\"kpi-unit\">%</span>';\n            document.getElementById('tpValue').innerHTML = (p.performance || 0).toFixed(1) + '<span class=\"kpi-unit\">%</span>';\n            document.getElementById('tqValue').innerHTML = (p.quality || 0).toFixed(1) + '<span class=\"kpi-unit\">%</span>';\n            document.getElementById('tdBar').style.width = Math.min(p.availability || 0, 100) + '%';\n            document.getElementById('tpBar').style.width = Math.min(p.performance || 0, 100) + '%';\n            document.getElementById('tqBar').style.width = Math.min(p.quality || 0, 100) + '%';\n            \n            var badge = document.getElementById('statusBadge');\n            if (trs >= 85) { badge.className = 'trs-status status-worldclass'; badge.textContent = '✦ WORLD CLASS'; }\n            else if (trs >= 65) { badge.className = 'trs-status status-moyen'; badge.textContent = '◈ MOYEN'; }\n            else if (trs >= 45) { badge.className = 'trs-status status-faible'; badge.textContent = '◉ FAIBLE'; }\n            else { badge.className = 'trs-status status-critique'; badge.textContent = '⚠ CRITIQUE'; }\n            \n            if (!userSetMachineName) {\n                document.getElementById('machineNameDisplay').textContent = (p.machine || 'MACHINE').toUpperCase();\n                document.getElementById('paramName').value = p.machine || 'MACHINE';\n            }\n            \n            var rpm = p.vitesse_rpm || 0;\n            document.getElementById('statState').textContent = rpm > 0 ? 'EN MARCHE' : 'ARRET';\n            document.getElementById('statState').style.color = rpm > 0 ? '#00ff88' : '#ff4757';\n            document.getElementById('statRPM').innerHTML = rpm.toFixed(0) + ' RPM';\n            document.getElementById('statGood').textContent = p.good || 0;\n            document.getElementById('statReject').textContent = p.reject || 0;\n            document.getElementById('statTotal').textContent = (p.good || 0) + (p.reject || 0);\n            \n            rpmData.push(rpm);\n            if (rpmData.length > maxDataPoints) rpmData.shift();\n            rpmChart.data.labels = rpmData.map((_, i) => i + 1);\n            rpmChart.data.datasets[0].data = [...rpmData];\n            rpmChart.update('none');\n            \n            var td = p.availability || 0, tp = p.performance || 0, tq = p.quality || 0;\n            var min = Math.min(td, tp, tq);\n            var weakest = 'TD';\n            if (tp === min) weakest = 'TP';\n            if (tq === min) weakest = 'TQ';\n            document.getElementById('statWeak').textContent = weakest;\n            \n            var trsElement = document.getElementById('trsValue');\n            if (trs >= 85) trsElement.style.background = 'linear-gradient(135deg, #ffffff, #00ff88, #00cc66)';\n            else if (trs >= 65) trsElement.style.background = 'linear-gradient(135deg, #ffffff, #ffd700, #ffaa00)';\n            else if (trs >= 45) trsElement.style.background = 'linear-gradient(135deg, #ffffff, #ff6b35, #ff4400)';\n            else trsElement.style.background = 'linear-gradient(135deg, #ffffff, #ff4757, #cc0000)';\n            trsElement.style.webkitBackgroundClip = 'text';\n            trsElement.style.backgroundClip = 'text';\n        });\n        \n        window.sendParams = function() {\n            var name = document.getElementById('paramName').value;\n            var rpm = parseInt(document.getElementById('paramRPM').value) || 1500;\n            var time = parseInt(document.getElementById('paramTime').value) || 480;\n            scope.send({topic: 'params', payload: {machine_name: name, nominal_rpm: rpm, planned_time: time}});\n            userSetMachineName = name.toUpperCase();\n            document.getElementById('machineNameDisplay').textContent = userSetMachineName;\n        };\n        \n        document.getElementById('paramName').addEventListener('input', function(e) {\n            userSetMachineName = e.target.value.toUpperCase();\n            document.getElementById('machineNameDisplay').textContent = userSetMachineName;\n        });\n    })(scope);\n</script>\n</body>\n</html>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 970,
+        "y": 600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "d2aba5db6c3d1e68",
+        "type": "mqtt-broker",
+        "name": "Public MQTT",
+        "broker": "broker.mqttdashboard.com",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": false,
+        "keepalive": 60,
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": 0,
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": 0,
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": 0,
+        "willPayload": ""
+    },
+    {
+        "id": "db617c4d0f469ead",
+        "type": "ui_group",
+        "name": "STATUT",
+        "tab": "d7de8d16fc88bc59",
+        "order": 5,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "4b8081d78764c615",
+        "type": "telegram bot",
+        "botname": "TRS Alert Bot",
+        "usernames": "",
+        "chatids": "",
+        "baseapiurl": "",
+        "testenvironment": false,
+        "updatemode": "polling",
+        "pollinterval": 300,
+        "usesocks": false,
+        "sockshost": "",
+        "socksprotocol": "socks5",
+        "socksport": 6667,
+        "socksusername": "anonymous",
+        "sockspassword": "",
+        "bothost": "",
+        "botpath": "",
+        "localbothost": "0.0.0.0",
+        "localbotport": 8443,
+        "publicbotport": 8443,
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "sslterminated": false,
+        "verboselogging": false
+    },
+    {
+        "id": "321e972868277d53",
+        "type": "ui_group",
+        "name": "Dashboard",
+        "tab": "0d7be6bd2e114b15",
+        "order": 1,
+        "disp": true,
+        "width": "24",
+        "collapse": false
+    },
+    {
+        "id": "d7de8d16fc88bc59",
+        "type": "ui_tab",
+        "name": "TRS Monitoring",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "0d7be6bd2e114b15",
+        "type": "ui_tab",
+        "name": "TRS",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "b3132aedb50b3592",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6",
+            "node-red-contrib-telegrambot": "17.1.3",
+            "node-red-node-email": "5.2.1"
+        }
+    }
+]
